@@ -52,7 +52,7 @@ jobs:
           python -c "import pytensor; from pytensor.compile.mode import get_default_mode; print('PROBE matrix.linker=${{ matrix.linker }} pytensor', pytensor.__version__, 'config.linker=' + pytensor.config.linker, 'default-mode-linker=' + type(get_default_mode().linker).__name__)"
       - name: Diagnose chain log-jac-det baseline gap
         run: |
-          python scratch_verify/diag_chain_ljd.py
+          PYTHONPATH=. python scratch_verify/diag_chain_ljd.py
       - name: Run the affected test
         if: ${{ always() }}
         run: |
