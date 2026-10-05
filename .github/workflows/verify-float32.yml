@@ -1,0 +1,55 @@
+name: verify-float32-linker
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - verify-float32-linker
+
+jobs:
+  float32:
+    strategy:
+      matrix:
+        variant: [current, fixed]
+        linker: [cvm, numba]
+        os: [windows-2022]
+        python-version: ["3.14"]
+        test-subset:
+          - tests/sampling/test_mcmc.py tests/ode/test_ode.py tests/ode/test_utils.py tests/distributions/test_transform.py
+      fail-fast: false
+    name: float32 ${{ matrix.variant }} linker=${{ matrix.linker }}
+    runs-on: ${{ matrix.os }}
+    env:
+      TEST_SUBSET: ${{ matrix.test-subset }}
+      # current = what tests.yml sets today; fixed = the proposed one-line change
+      PYTENSOR_FLAGS: ${{ matrix.variant == 'fixed' && format('floatX=float32,linker={0}', matrix.linker) || 'floatX=float32' }}
+      NUMBA_CPU_NAME: generic
+      NUMBA_CPU_FEATURES: ""
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+        with:
+          environment-file: conda-envs/windows-environment-test.yml
+          micromamba-version: "2.6.0-0"
+          create-args: >-
+            python=${{matrix.python-version}}
+          environment-name: pymc-test
+          init-shell: bash
+          cache-environment: false
+      - name: Install-pymc
+        run: |
+          pip install -e .
+          python --version
+      - name: Probe resolved linker
+        run: |
+          echo "PYTENSOR_FLAGS=$PYTENSOR_FLAGS"
+          python -c "import pytensor; from pytensor.compile.mode import get_default_mode; print('PROBE matrix.linker=${{ matrix.linker }} pytensor', pytensor.__version__, 'config.linker=' + pytensor.config.linker, 'default-mode-linker=' + type(get_default_mode().linker).__name__)"
+      - name: Run tests
+        run: |
+          python -m pytest -vv --durations=20 $TEST_SUBSET
