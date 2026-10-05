@@ -11,7 +11,7 @@ jobs:
   float32:
     strategy:
       matrix:
-        variant: [current, fixed]
+        variant: [fixed]
         linker: [cvm, numba]
         os: [windows-2022]
         python-version: ["3.14"]
@@ -50,6 +50,10 @@ jobs:
         run: |
           echo "PYTENSOR_FLAGS=$PYTENSOR_FLAGS"
           python -c "import pytensor; from pytensor.compile.mode import get_default_mode; print('PROBE matrix.linker=${{ matrix.linker }} pytensor', pytensor.__version__, 'config.linker=' + pytensor.config.linker, 'default-mode-linker=' + type(get_default_mode().linker).__name__)"
-      - name: Run tests
+      - name: Diagnose chain log-jac-det baseline gap
         run: |
-          python -m pytest -vv --durations=20 $TEST_SUBSET
+          python scratch_verify/diag_chain_ljd.py
+      - name: Run the affected test
+        if: ${{ always() }}
+        run: |
+          python -m pytest -q tests/distributions/test_transform.py::test_chain_jacob_det
